@@ -31,7 +31,7 @@ class SolarObject:
         self.density = new_density
 
         if DoingVisuals:
-            self.vpython_display = sphere(pos=self.position,radius=max(self.radius*8, 1e9),color=new_color, make_trail=True, retain=50*20)
+            self.vpython_display = sphere(pos=self.position,radius=max(self.radius*8, 1e9),color=new_color, make_trail=True, trail_type='points', retain=50*20)
     
     def mass(self):
         "Returns the mass of this object, derived from radius and density"
@@ -47,6 +47,8 @@ class SolarObject:
         # All calculations are done under the assumption that object is the more massive object.
         # The check is done both ways in the main loops anyway, and doing it the wrong way only gives a smaller, more restricitive answer.
 
+        if self.mass() < other_object.mass(): return False
+
         distance = mag(self.position - other_object.position)
 
         # Numerical constant from the Roche equation, depends on the composition of the two bodies
@@ -57,18 +59,20 @@ class SolarObject:
 if DoingVisuals:
     scene2 = canvas(title='Orbits', caption='Animated Display', center=vector(0,0,0), background=color.black, width=1200, height=1000)
 
-Sun = SolarObject(ObjectType.SUN, vec(0, 0, 0), vec(10000, 0, 0), 695500 * KM, 1408, color.yellow)
-txt = label(pos=vec(0, -1e8 * KM, 0), text="")
+Sun = SolarObject(ObjectType.SUN, vec(0, 0, 0), vec(0, 0, 0), 695500 * KM, 1408, color.yellow)
+
+txt = None
+if DoingVisuals:
+    txt = label(pos=vec(0, -1e8 * KM, 0), text="")
 
 ListOfSolarObjects = [
     Sun,
-    SolarObject(ObjectType.SUN, vec(50000000 * KM, 200000000 * KM, 0), vec(-10000, 0, 0), 695500 * KM, 1408, color.yellow),
-    SolarObject(ObjectType.RIGID_BODY, vec(AU, 0, 0), vec(0, 0, 0), 6390 * KM, 5513, color.green) # Earth
-    # Original earth initial velocity: vec(0, 29830, 0)
+    # SolarObject(ObjectType.SUN, vec(0, 200000000 * KM, 0), vec(-10000, 0, 0), 695500 * KM, 1408, color.yellow), # Other sun
+    SolarObject(ObjectType.RIGID_BODY, vec(AU, 0, 0), vec(0, 29830, 0), 6390 * KM, 55130, color.green) # Earth
 ]
 
 current_time = 0
-dt = 15 * MINUTE
+dt = 3 * MINUTE
 
 def simulate_single_frame():
     "Process and update all objects in `ListOfSolarObjects` according to physics laws"
@@ -83,9 +87,6 @@ def simulate_single_frame():
         
         object.momentum += object.net_force * dt
         object.position += object.momentum / object.mass() * dt
-
-        print(object.type, object.position)
-    print()
 
     # Detect collisions and deal with such
     for object in ListOfSolarObjects:
@@ -105,10 +106,11 @@ def simulate_single_frame():
                 elif other_object.type == ObjectType.GAS_GIANT and object.type == ObjectType.RIGID_BODY:
                     object.type = ObjectType.RIGID_BODY
                 
-                other_object.vpython_display.visible = False # So, there's actually no way to delete a vpython object. Man.
-                other_object.vpython_display.make_trail = False
-                other_object.vpython_display.retain = 0
-                other_object.vpython_display.position = vec(0, 0, 0)
+                if DoingVisuals:
+                    other_object.vpython_display.visible = False # So, there's actually no way to delete a vpython object. Man.
+                    other_object.vpython_display.make_trail = False
+                    other_object.vpython_display.retain = 0
+                    other_object.vpython_display.position = vec(0, 0, 0)
                 other_object.position = vec(0, 0, 0)
                 ListOfSolarObjects.remove(other_object)
     
@@ -116,13 +118,18 @@ def simulate_single_frame():
 
 # Main loop
 while True:
-    rate(1200)
-    for i in range(1):
+    if DoingVisuals:
+        rate(120)
+    
+    for i in range(1500):
         simulate_single_frame()
 
-    txt.text = f"{floor(current_time / 86400)} days"
+    print(f"{current_time / (86400*365)} years")
 
     if DoingVisuals:
+        # txt.text = f"{floor(current_time / 86400)} days"
+        txt.text = f"{floor(current_time / (86400*365))} years"
+
         for object in ListOfSolarObjects:
             if object.vpython_display.visible:
                 object.vpython_display.pos = object.position
